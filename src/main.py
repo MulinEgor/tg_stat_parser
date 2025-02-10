@@ -1,0 +1,101 @@
+"""Модуль для запуска программы"""
+
+import questionary
+import undetected_chromedriver as uc
+from rich import print
+from selenium.common.exceptions import SessionNotCreatedException
+
+import src.constants as constants
+import src.parse as parse
+import src.utils as utils
+
+
+def main():
+    # MARK: Инициализация
+    try:
+        driver = uc.Chrome()
+    except SessionNotCreatedException as e:
+        broswer_version = int(e.msg.split(" ")[-1].split(".")[0])
+        driver = uc.Chrome(version_main=broswer_version)
+
+    try:
+        driver.maximize_window()
+        driver.get(constants.WEBSITE_BASE_URL)
+
+        # MARK: Авторизация
+        print(
+            "[yellow]Авторизуйтесь на сайте, чтобы получить полный список каналов[/yellow]"
+        )
+        input("Нажмите Enter, когда авторизуетесь...")
+
+        # Проверяем авторизацию
+        if not parse.check_auth(driver):
+            print(
+                "[red]Вы не авторизовались на сайте, полное количество каналов не будет получено[/red]"
+            )
+            return
+        else:
+            print("[green]Авторизация прошла успешно[/green]")
+
+        # MARK: Страны
+        # Получаем список стран
+        countries = parse.parse_countries(driver)
+
+        if not countries:
+            print("[red]Страницы с выбором стран не загружены[/red]")
+            return
+
+        print(f"[blue]Найдено {len(countries)} стран:[/blue]")
+
+        # Выбираем страну
+        country = questionary.select("Выберите страну:", choices=countries).ask()
+
+        # Переходим на страницу с выбранной страной
+        parse.press_country_button(driver, country)
+
+        # MARK: Категории
+        # Получаем список категорий
+        categories = parse.parse_categories(driver)
+
+        if not categories:
+            print("[red]Страницы с выбором категорий не загружены[/red]")
+            return
+
+        print(f"[blue]Найдено {len(categories)} категорий:[/blue]")
+
+        # Выбираем категорию
+        category_names = [cat["название"] for cat in categories]
+        category_name = questionary.select(
+            "Выберите категорию:", choices=category_names
+        ).ask()
+
+        category = next(cat for cat in categories if cat["название"] == category_name)
+
+        # Переходим на страницу с категорией
+        driver.get(category["ссылка"])
+
+        # MARK: Тип контента
+        print(f"[blue]Найдено {len(constants.CONTENT_TYPES)} типов контента:[/blue]")
+
+        # Выбираем тип контента
+        content_type = questionary.select(
+            "Выберите тип контента:", choices=constants.CONTENT_TYPES
+        ).ask()
+
+        # MARK: Каналы и чаты
+        data = parse.parse_data(driver, content_type)
+
+        print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
+
+        # MARK: Сохранение данных
+        utils.save_data(data)
+
+        print(
+            f"[green]Данные успешно сохранены в директорию {constants.OUTPUT_FOLDER}[/green]"
+        )
+    finally:
+        driver.quit()
+
+
+if __name__ == "__main__":
+    main()
