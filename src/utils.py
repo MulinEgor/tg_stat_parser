@@ -5,7 +5,7 @@ from datetime import datetime
 
 import pandas as pd
 
-import src.constants as constants
+import constants as constants
 
 
 def save_data(data: list[dict]):

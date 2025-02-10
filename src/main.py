@@ -5,9 +5,9 @@ import undetected_chromedriver as uc
 from rich import print
 from selenium.common.exceptions import SessionNotCreatedException
 
-import src.constants as constants
-import src.parse as parse
-import src.utils as utils
+import constants as constants
+import parse as parse
+import utils as utils
 
 
 def main():
@@ -39,6 +39,7 @@ def main():
 
         # MARK: Страны
         # Получаем список стран
+        print("[yellow]Получение списка стран...[/yellow]")
         countries = parse.parse_countries(driver)
 
         if not countries:
@@ -55,6 +56,7 @@ def main():
 
         # MARK: Категории
         # Получаем список категорий
+        print("[yellow]Получение списка категорий...[/yellow]")
         categories = parse.parse_categories(driver)
 
         if not categories:
@@ -83,6 +85,7 @@ def main():
         ).ask()
 
         # MARK: Каналы и чаты
+        print("[yellow]Получение списка каналов и чатов...[/yellow]")
         data = parse.parse_data(driver, content_type)
 
         print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
