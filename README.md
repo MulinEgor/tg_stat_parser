@@ -2,6 +2,14 @@
 
 ## Установка и запуск проекта
 
+- Запуск через exe файл:
+
+```bash
+.\dist\main.exe
+```
+
+- Запуск вручную:
+
 1. Установить [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 2. Клонировать проект:
