@@ -5,9 +5,9 @@ import undetected_chromedriver as uc
 from rich import print
 from selenium.common.exceptions import SessionNotCreatedException
 
-import constants as constants
-import parse as parse
-import utils as utils
+import constants
+import parse
+import utils
 
 
 def main():
@@ -21,6 +21,10 @@ def main():
     try:
         driver.maximize_window()
         driver.get(constants.WEBSITE_BASE_URL)
+
+        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
+        if parse.exists_captcha(driver):
+            utils.prompt_to_solve_captcha(driver)
 
         # MARK: Авторизация
         print(
@@ -54,6 +58,10 @@ def main():
         # Переходим на страницу с выбранной страной
         parse.press_country_button(driver, country)
 
+        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
+        if parse.exists_captcha(driver):
+            utils.prompt_to_solve_captcha(driver)
+
         # MARK: Категории
         # Получаем список категорий
         print("[yellow]Получение списка категорий...[/yellow]")
@@ -76,6 +84,10 @@ def main():
         # Переходим на страницу с категорией
         driver.get(category["ссылка"])
 
+        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
+        if parse.exists_captcha(driver):
+            utils.prompt_to_solve_captcha(driver)
+
         # MARK: Тип контента
         print(f"[blue]Найдено {len(constants.CONTENT_TYPES)} типов контента:[/blue]")
 
@@ -85,7 +97,7 @@ def main():
         ).ask()
 
         # MARK: Каналы и чаты
-        print("[yellow]Получение списка каналов и чатов...[/yellow]")
+        print(f"[yellow]Получение списка {content_type}ов...[/yellow]")
         data = parse.parse_data(driver, content_type)
 
         print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")

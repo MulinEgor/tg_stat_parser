@@ -8,7 +8,30 @@ from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.support.ui import WebDriverWait
 
-import constants as constants
+import constants
+import utils
+
+
+# MARK: CAPTCH
+def exists_captcha(driver: WebDriver) -> bool:
+    """
+    Проверяет, есть ли капча на странице
+
+    Args:
+        driver (WebDriver): Веб-драйвер
+
+    Returns:
+        bool: True, если капча есть, False - в противном случае
+    """
+
+    try:
+        WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
+            EC.visibility_of_element_located((By.ID, "recaptcha-widget"))
+        )
+
+        return True
+    except TimeoutException:
+        return False
 
 
 # MARK: Авторизация
@@ -155,6 +178,9 @@ def parse_channel_info(driver: WebDriver, data: dict):
     """
 
     driver.get(data["ссылка для парсинга"])
+    # Проверяем наличие капчи, если она есть, то просим пользователя решить её
+    if exists_captcha(driver):
+        utils.prompt_to_solve_captcha(driver)
 
     try:
         posts_container = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
