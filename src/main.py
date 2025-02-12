@@ -105,16 +105,7 @@ def main():
 
         # MARK: Каналы и чаты
         print(f"[yellow]Получение списка {content_type}ов...[/yellow]")
-        data = parse.parse_data(driver, content_type, min_subscribers)
-
-        print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
-
-        # MARK: Сохранение данных
-        utils.save_data(data)
-
-        print(
-            f"[green]Данные успешно сохранены в директорию {constants.OUTPUT_FOLDER}[/green]"
-        )
+        parse.parse_and_save_data(driver, content_type, min_subscribers)
 
     finally:
         driver.quit()

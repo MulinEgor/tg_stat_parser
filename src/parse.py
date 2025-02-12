@@ -13,7 +13,7 @@ import constants
 import utils
 
 
-# MARK: CAPTCH
+# MARK: CAPTCHA
 def exists_captcha(driver: WebDriver) -> bool:
     """
     Проверяет, есть ли капча на странице
@@ -82,6 +82,7 @@ def parse_countries(driver: WebDriver) -> list[str]:
                 )
             )
         )
+        time.sleep(2)
         button.click()
 
         WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
@@ -183,15 +184,9 @@ def parse_channel_info(driver: WebDriver, data: dict):
     if exists_captcha(driver):
         utils.prompt_to_solve_captcha(driver)
 
-    try:
-        posts_container = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
-            EC.presence_of_element_located((By.CSS_SELECTOR, "div.posts-list"))
-        )
-    except TimeoutException:
-        data["дата последнего поста"] = None
-        data["среднее количество лайков за последние 10 постов"] = None
-        data["среднее количество просмотров за последние 10 постов"] = None
-        return
+    posts_container = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
+        EC.presence_of_element_located((By.CSS_SELECTOR, "div.posts-list"))
+    )
 
     posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")[
         : constants.NUMBER_OF_POSTS_TO_PARSE
@@ -242,18 +237,15 @@ def parse_channel_info(driver: WebDriver, data: dict):
     ] = int(views / len(posts))
 
 
-def parse_data(
+def parse_and_save_data(
     driver: WebDriver, content_type: str, min_subscribers: int | None
-) -> list[dict]:
+):
     """
     Парсит данные в зависимости от типа контента.
 
     Args:
         driver (WebDriver): Веб-драйвер
         content_type (str): Тип контента(канал или чат)
-
-    Returns:
-        list[dict]: Список каналов или чатов
     """
 
     if content_type == "чат":
@@ -277,7 +269,6 @@ def parse_data(
             driver.execute_script("arguments[0].scrollIntoView(true);", button)
 
             content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
-
             for item_data in (
                 content_data[i * count_of_elments_per_page :]
                 if count_of_elments_per_page
@@ -306,14 +297,6 @@ def parse_data(
 
                 data.append(item_data)
 
-            if content_type == "канал":
-                for item_data in (
-                    data[i * count_of_elments_per_page :]
-                    if count_of_elments_per_page
-                    else data
-                ):
-                    parse_channel_info(driver, item_data)
-
             if min_subscribers is not None and subscribers < min_subscribers:
                 break
 
@@ -329,4 +312,23 @@ def parse_data(
             print(f"[red]Ошибка при парсинге данных:[/red] {e}")
             break
 
-    return data
+    print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
+    utils.save_data(data)
+    print(
+        f"[green]Данные о {len(data)} {content_type}ах записаны в выходной файл {constants.OUTPUT_PATH}[/green]"
+    )
+
+    if content_type == "канал":
+        print("[yellow]Парсинг данных о каналах...[/yellow]")
+        for i, item_data in enumerate(data):
+            try:
+                parse_channel_info(driver, item_data)
+            except Exception as e:
+                print(f"[red]Ошибка при парсинге данных канала:[/red] {e}")
+
+            # Каждые BATCH_SIZE итераций перезаписываем данные в файл
+            if i != 0 and i % constants.BATCH_SAVE_SIZE == 0:
+                utils.save_data(data)
+                print(
+                    f"[green]Подробная информация о {i} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+                )

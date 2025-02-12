@@ -40,9 +40,9 @@ def save_data(data: list[dict]):
     if not os.path.exists(constants.OUTPUT_FOLDER):
         os.makedirs(constants.OUTPUT_FOLDER)
 
+    if constants.OUTPUT_PATH is None:
+        constants.OUTPUT_PATH = f"{constants.OUTPUT_FOLDER}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
+
     df = pd.DataFrame(data)
-    output_path = (
-        f"{constants.OUTPUT_FOLDER}/{datetime.now().strftime('%Y-%m-%d_%H-%M-%S')}.xlsx"
-    )
     df.pop("ссылка для парсинга")
-    df.to_excel(output_path, index=False, engine="openpyxl")
+    df.to_excel(constants.OUTPUT_PATH, index=False, engine="openpyxl")
