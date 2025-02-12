@@ -2,6 +2,7 @@
 
 import time
 
+from rich import print
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
@@ -241,7 +242,9 @@ def parse_channel_info(driver: WebDriver, data: dict):
     ] = int(views / len(posts))
 
 
-def parse_data(driver: WebDriver, content_type: str) -> list[dict]:
+def parse_data(
+    driver: WebDriver, content_type: str, min_subscribers: int | None
+) -> list[dict]:
     """
     Парсит данные в зависимости от типа контента.
 
@@ -259,6 +262,8 @@ def parse_data(driver: WebDriver, content_type: str) -> list[dict]:
         )
         driver.execute_script("arguments[0].click();", button)
 
+    data = []
+    count_of_elments_per_page, i = None, 0
     while True:
         try:
             button = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
@@ -269,40 +274,59 @@ def parse_data(driver: WebDriver, content_type: str) -> list[dict]:
                     )
                 )
             )
-            if button.is_displayed():
-                driver.execute_script("arguments[0].scrollIntoView(true);", button)
-                driver.execute_script("arguments[0].click();", button)
-            else:
+            driver.execute_script("arguments[0].scrollIntoView(true);", button)
+
+            content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
+
+            for item_data in (
+                content_data[i * count_of_elments_per_page :]
+                if count_of_elments_per_page
+                else content_data
+            ):
+                name = item_data.find_element(
+                    By.CSS_SELECTOR, "a.text-body"
+                ).text.split("\n")[0]
+                url = item_data.find_element(
+                    By.CSS_SELECTOR, "a.text-body"
+                ).get_attribute("href")
+                subscribers = int(
+                    item_data.find_element(By.TAG_NAME, "b").text.replace(" ", "")
+                )
+
+                if min_subscribers is not None and subscribers < min_subscribers:
+                    break
+
+                item_data = {
+                    "название": name,
+                    "ссылка": constants.TELEGRAM_BASE_URL
+                    + url.split("/")[-1].replace("@", ""),
+                    "подписчики": subscribers,
+                    "ссылка для парсинга": url,
+                }
+
+                data.append(item_data)
+
+            if content_type == "канал":
+                for item_data in (
+                    data[i * count_of_elments_per_page :]
+                    if count_of_elments_per_page
+                    else data
+                ):
+                    parse_channel_info(driver, item_data)
+
+            if min_subscribers is not None and subscribers < min_subscribers:
                 break
+
+            driver.execute_script("arguments[0].click();", button)
+            i += 1
+            if count_of_elments_per_page is None:
+                count_of_elments_per_page = len(content_data)
+
         except TimeoutException:
             break
 
-    data = []
-    content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
-
-    for item_data in content_data:
-        name = item_data.find_element(By.CSS_SELECTOR, "a.text-body").text.split("\n")[
-            0
-        ]
-
-        url = item_data.find_element(By.CSS_SELECTOR, "a.text-body").get_attribute(
-            "href"
-        )
-        subscribers = int(
-            item_data.find_element(By.TAG_NAME, "b").text.replace(" ", "")
-        )
-
-        item_data = {
-            "название": name,
-            "ссылка": constants.TELEGRAM_BASE_URL + url.split("/")[-1].replace("@", ""),
-            "подписчики": subscribers,
-            "ссылка для парсинга": url,
-        }
-
-        data.append(item_data)
-
-    if content_type == "канал":
-        for item_data in data:
-            parse_channel_info(driver, item_data)
+        except Exception as e:
+            print(f"[red]Ошибка при парсинге данных:[/red] {e}")
+            break
 
     return data

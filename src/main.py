@@ -96,9 +96,16 @@ def main():
             "Выберите тип контента:", choices=constants.CONTENT_TYPES
         ).ask()
 
+        min_subscribers = questionary.text(
+            "Введите минимальное количество подписчиков (оставьте пустым, если ограничение не требуется):"
+        ).ask()
+
+        # Преобразуем введенное значение в число или None
+        min_subscribers = int(min_subscribers) if min_subscribers.strip() else None
+
         # MARK: Каналы и чаты
         print(f"[yellow]Получение списка {content_type}ов...[/yellow]")
-        data = parse.parse_data(driver, content_type)
+        data = parse.parse_data(driver, content_type, min_subscribers)
 
         print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
 
@@ -108,6 +115,7 @@ def main():
         print(
             f"[green]Данные успешно сохранены в директорию {constants.OUTPUT_FOLDER}[/green]"
         )
+
     finally:
         driver.quit()
 
