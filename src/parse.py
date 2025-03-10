@@ -82,7 +82,7 @@ def parse_countries(driver: WebDriver) -> list[str]:
                 )
             )
         )
-        time.sleep(2)
+        time.sleep(constants.DEFAULT_PARSE_TIMEOUT)
         button.click()
 
         WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
@@ -184,6 +184,15 @@ def parse_channel_info(driver: WebDriver, data: dict):
     if exists_captcha(driver):
         utils.prompt_to_solve_captcha(driver)
 
+    # Получаем ссылки из описания
+    links = []
+    for link in driver.find_elements(By.CSS_SELECTOR, "a[rel='nofollow']"):
+        text = link.get_attribute("text")
+        if text.startswith("@") and text not in links:
+            links.append(text.strip())
+
+    data["ссылки"] = ", ".join(links)
+
     posts_container = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "div.posts-list"))
     )
@@ -191,7 +200,7 @@ def parse_channel_info(driver: WebDriver, data: dict):
     posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")[
         : constants.NUMBER_OF_POSTS_TO_PARSE
     ]
-    likes, views = 0, 0
+    likes, views, comments = 0, 0, 0
 
     for i, post in enumerate(posts):
         if i == 0:
@@ -212,13 +221,14 @@ def parse_channel_info(driver: WebDriver, data: dict):
                 .replace("k", "0" * (2 if "." in views_text else 3))
                 .replace(".", "")
             )
+
         except NoSuchElementException:
             pass
 
         try:
             likes_text = post.find_element(
                 By.CSS_SELECTOR,
-                "span.btn.btn-light.btn-rounded.py-05.px-13.mr-1.font-12.font-sm-13:nth-of-type(2)",
+                "span[data-original-title^='Количество реакций к публикации']",
             ).text
 
             likes += int(
@@ -226,6 +236,22 @@ def parse_channel_info(driver: WebDriver, data: dict):
                 .replace("k", "0" * (2 if "." in likes_text else 3))
                 .replace(".", "")
             )
+
+        except NoSuchElementException:
+            pass
+
+        try:
+            comments_text = post.find_element(
+                By.CSS_SELECTOR,
+                "span[data-original-title='Количество комментариев к публикации']",
+            ).text
+
+            comments += int(
+                comments_text.replace("m", "0" * (5 if "." in comments_text else 6))
+                .replace("k", "0" * (2 if "." in comments_text else 3))
+                .replace(".", "")
+            )
+
         except NoSuchElementException:
             pass
 
@@ -235,6 +261,12 @@ def parse_channel_info(driver: WebDriver, data: dict):
     data[
         f"среднее количество просмотров за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
     ] = int(views / len(posts))
+    data[
+        f"среднее количество комментариев за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
+    ] = int(comments / len(posts))
+    data[
+        f"наличие комментариев за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
+    ] = "да" if comments > 0 else "нет"
 
 
 def parse_and_save_data(
@@ -332,3 +364,8 @@ def parse_and_save_data(
                 print(
                     f"[green]Подробная информация о {i} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
                 )
+
+        utils.save_data(data)
+        print(
+            f"[green]Подробная информация о {len(data)} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+        )
