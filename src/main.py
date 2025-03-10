@@ -14,6 +14,7 @@ def main():
     # MARK: Инициализация
     try:
         driver = uc.Chrome()
+
     except SessionNotCreatedException as e:
         broswer_version = int(e.msg.split(" ")[-1].split(".")[0])
         driver = uc.Chrome(version_main=broswer_version)
