@@ -11,7 +11,7 @@ After starting parser, you will be able to select country, category and whather 
 
 If you select a chat, the fields will be:
 ```bash
-название (name0
+название (name)
 ссылка (url)
 подписчики (subscribers)
 ```
@@ -19,7 +19,11 @@ If you select to parse a channel, there will be the same fields as the chat ones
 ```bash
 дата последнего поста (last post date)
 среднее количество лайков за последние 10 постов (average number of likes for last 10 posts)
-среднее количество лайков за последние 10 постов (average number of views for last 10 posts)
+среднее количество просмотров за последние 10 постов (average number of views for last 10 posts)
+среднее количество комментариев за последние 10 постов (average number of comments for last 10 posts)
+среднее количество постов за последние 10 дней (average number of posts for last 10 days)
+ссылки (links)
+наличие комментариев за последние 10 дней (presence of comments for last 10 days)
 ``` 
 
 ## Project Setup and launch
@@ -32,18 +36,16 @@ If you select to parse a channel, there will be the same fields as the chat ones
 
 - Manual launch:
 
-1. Install [uv](https://docs.astral.sh/uv/getting-started/installation/).
-
-2. Install dependencies:
+1. Install dependencies:
 
 ```bash
-uv sync 
+pip install .
 ```
 
-5. Launch:
+2. Launch:
 
 ```bash
-uv run -m src.main
+python src/main.py
 ```
 
 > [!NOTE]  

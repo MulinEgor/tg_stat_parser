@@ -31,6 +31,7 @@ def exists_captcha(driver: WebDriver) -> bool:
         )
 
         return True
+
     except TimeoutException:
         return False
 
@@ -82,7 +83,7 @@ def parse_countries(driver: WebDriver) -> list[str]:
                 )
             )
         )
-        time.sleep(2)
+        time.sleep(constants.DEFAULT_PARSE_TIMEOUT)
         button.click()
 
         WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
@@ -146,6 +147,7 @@ def parse_categories(driver: WebDriver) -> list[dict]:
                 .text.strip()
                 .lower()
             )
+
         except NoSuchElementException:
             continue
 
@@ -184,23 +186,32 @@ def parse_channel_info(driver: WebDriver, data: dict):
     if exists_captcha(driver):
         utils.prompt_to_solve_captcha(driver)
 
+    # Получаем ссылки из описания
+    links = []
+    for link in driver.find_elements(By.CSS_SELECTOR, "a[rel='nofollow']"):
+        text = link.get_attribute("text")
+        if text.startswith("@") and text not in links:
+            links.append(text.strip())
+
+    data["ссылки"] = ", ".join(links)
+
     posts_container = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
         EC.presence_of_element_located((By.CSS_SELECTOR, "div.posts-list"))
     )
+    posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")
+    likes, views, comments = 0, 0, 0
 
-    posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")[
-        : constants.NUMBER_OF_POSTS_TO_PARSE
-    ]
-    likes, views = 0, 0
-
-    for i, post in enumerate(posts):
+    # Парсим последние NUMBER_OF_POSTS_TO_PARSE постов
+    for i, post in enumerate(posts[: constants.NUMBER_OF_POSTS_TO_PARSE]):
         if i == 0:
             try:
                 data["дата последнего поста"] = post.find_element(
                     By.CSS_SELECTOR, "small"
                 ).text
+
             except NoSuchElementException:
                 data["дата последнего поста"] = None
+                break
 
         try:
             views_text = post.find_element(
@@ -212,13 +223,14 @@ def parse_channel_info(driver: WebDriver, data: dict):
                 .replace("k", "0" * (2 if "." in views_text else 3))
                 .replace(".", "")
             )
+
         except NoSuchElementException:
             pass
 
         try:
             likes_text = post.find_element(
                 By.CSS_SELECTOR,
-                "span.btn.btn-light.btn-rounded.py-05.px-13.mr-1.font-12.font-sm-13:nth-of-type(2)",
+                "span[data-original-title^='Количество реакций к публикации']",
             ).text
 
             likes += int(
@@ -226,8 +238,63 @@ def parse_channel_info(driver: WebDriver, data: dict):
                 .replace("k", "0" * (2 if "." in likes_text else 3))
                 .replace(".", "")
             )
+
         except NoSuchElementException:
             pass
+
+        try:
+            comments_text = post.find_element(
+                By.CSS_SELECTOR,
+                "span[data-original-title='Количество комментариев к публикации']",
+            ).text
+
+            comments += int(
+                comments_text.replace("m", "0" * (5 if "." in comments_text else 6))
+                .replace("k", "0" * (2 if "." in comments_text else 3))
+                .replace(".", "")
+            )
+
+        except NoSuchElementException:
+            pass
+
+    # Парсим все посты за последние 10 дней
+    recent_posts_count, offset = 0, 0
+    while True:
+        is_last_post_in_10_days = True
+        for post in posts[offset:]:
+            post_date = post.find_element(By.CSS_SELECTOR, "small").text
+            if utils.is_date_in_the_last_10_days(post_date):
+                recent_posts_count += 1
+            else:
+                is_last_post_in_10_days = False
+                break
+
+        if not is_last_post_in_10_days:
+            break
+
+        # Прокрутка вниз
+        try:
+            offset = int(
+                driver.find_element(By.CSS_SELECTOR, "strong.lm-current-loaded").text
+            )
+            button = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.CSS_SELECTOR,
+                        "button.btn.btn-light.border.lm-button.py-1.min-width-220px",
+                    )
+                )
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", button)
+            driver.execute_script("arguments[0].click();", button)
+            # Обновляем список постов
+            posts_container = WebDriverWait(
+                driver, constants.DEFAULT_PARSE_TIMEOUT
+            ).until(EC.presence_of_element_located((By.CSS_SELECTOR, "div.posts-list")))
+            posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")
+
+        except Exception:
+            break
 
     data[
         f"среднее количество лайков за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
@@ -235,10 +302,21 @@ def parse_channel_info(driver: WebDriver, data: dict):
     data[
         f"среднее количество просмотров за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
     ] = int(views / len(posts))
+    data[
+        f"среднее количество комментариев за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
+    ] = int(comments / len(posts))
+    data[
+        f"наличие комментариев за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
+    ] = "да" if comments > 0 else "нет"
+    data["среднее количество постов за последние 10 дней"] = recent_posts_count / 10
 
 
 def parse_and_save_data(
-    driver: WebDriver, content_type: str, min_subscribers: int | None
+    driver: WebDriver,
+    content_type: str,
+    keywords: list[str],
+    min_subscribers: int | None,
+    max_subscribers: int | None,
 ):
     """
     Парсит данные в зависимости от типа контента.
@@ -246,6 +324,9 @@ def parse_and_save_data(
     Args:
         driver (WebDriver): Веб-драйвер
         content_type (str): Тип контента(канал или чат)
+        keywords (list[str]): Ключевые слова для фильтрации каналов и чатов
+        min_subscribers (int | None): Минимальное количество подписчиков
+        max_subscribers (int | None): Максимальное количество подписчиков
     """
 
     if content_type == "чат":
@@ -274,21 +355,31 @@ def parse_and_save_data(
                 if count_of_elments_per_page
                 else content_data
             ):
-                name = item_data.find_element(
+                description = item_data.find_element(
                     By.CSS_SELECTOR, "a.text-body"
-                ).text.split("\n")[0]
-                url = item_data.find_element(
-                    By.CSS_SELECTOR, "a.text-body"
-                ).get_attribute("href")
+                ).text
+                # Фильтруем по ключевым словам
+                if keywords and not any(
+                    keyword.lower() in description.lower() for keyword in keywords
+                ):
+                    continue
+
                 subscribers = int(
                     item_data.find_element(By.TAG_NAME, "b").text.replace(" ", "")
                 )
-
+                # Фильтруем по количеству подписчиков
                 if min_subscribers is not None and subscribers < min_subscribers:
                     break
 
+                if max_subscribers is not None and subscribers > max_subscribers:
+                    continue
+
+                url = item_data.find_element(
+                    By.CSS_SELECTOR, "a.text-body"
+                ).get_attribute("href")
+
                 item_data = {
-                    "название": name,
+                    "название": description.split("\n")[0],
                     "ссылка": constants.TELEGRAM_BASE_URL
                     + url.split("/")[-1].replace("@", ""),
                     "подписчики": subscribers,
@@ -323,6 +414,7 @@ def parse_and_save_data(
         for i, item_data in enumerate(data):
             try:
                 parse_channel_info(driver, item_data)
+
             except Exception as e:
                 print(f"[red]Ошибка при парсинге данных канала:[/red] {e}")
 
@@ -332,3 +424,8 @@ def parse_and_save_data(
                 print(
                     f"[green]Подробная информация о {i} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
                 )
+
+        utils.save_data(data)
+        print(
+            f"[green]Подробная информация о {len(data)} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+        )

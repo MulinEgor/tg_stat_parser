@@ -46,3 +46,34 @@ def save_data(data: list[dict]):
     df = pd.DataFrame(data)
     df.pop("ссылка для парсинга")
     df.to_excel(constants.OUTPUT_PATH, index=False, engine="openpyxl")
+
+
+def is_date_in_the_last_10_days(date: str) -> bool:
+    """
+    Проверяет, является ли дата последних 10 дней
+
+    Args:
+        date (str): Дата в формате "день месяц год(опционально)"
+
+    Returns:
+        bool: True, если дата последних 10 дней, False - иначе
+    """
+
+    date_parts = date.split(", ")[0].split()
+    post_day = int(date_parts[0])
+    post_month = datetime.strptime(date_parts[1], "%b").month
+
+    # Получаем текущую дату
+    current_date = datetime.now()
+    # Создаем дату поста
+    if len(date_parts) == 3:  # Если указан год
+        post_year = int(date_parts[2])
+    else:
+        post_year = current_date.year
+
+    post_datetime = datetime(post_year, post_month, post_day)
+
+    # Вычисляем разницу в днях
+    days_difference = (current_date - post_datetime).days
+
+    return days_difference <= 10
