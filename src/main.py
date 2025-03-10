@@ -96,6 +96,7 @@ def main():
             "Выберите тип контента:", choices=constants.CONTENT_TYPES
         ).ask()
 
+        # Получаем минимальное и максимальное количество подписчиков
         min_subscribers = questionary.text(
             "Введите минимальное количество подписчиков (оставьте пустым, если ограничение не требуется):"
         ).ask()
@@ -103,9 +104,26 @@ def main():
         # Преобразуем введенное значение в число или None
         min_subscribers = int(min_subscribers) if min_subscribers.strip() else None
 
+        max_subscribers = questionary.text(
+            "Введите максимальное количество подписчиков (оставьте пустым, если ограничение не требуется):"
+        ).ask()
+
+        # Преобразуем введенное значение в число или None
+        max_subscribers = int(max_subscribers) if max_subscribers.strip() else None
+
+        # Получаем ключевые слова по которым будет происходить поиск
+        keywords = questionary.text(
+            "Введите ключевые слова через пробел по которым будет происходить поиск (оставьте пустым, если не требуется):"
+        ).ask()
+
+        # Преобразуем введенное значение в список
+        keywords = keywords.split()
+
         # MARK: Каналы и чаты
         print(f"[yellow]Получение списка {content_type}ов...[/yellow]")
-        parse.parse_and_save_data(driver, content_type, min_subscribers)
+        parse.parse_and_save_data(
+            driver, content_type, keywords, min_subscribers, max_subscribers
+        )
 
     finally:
         driver.quit()

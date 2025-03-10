@@ -200,7 +200,7 @@ def parse_channel_info(driver: WebDriver, data: dict):
     posts = posts_container.find_elements(By.CSS_SELECTOR, "div.card.card-body")[
         : constants.NUMBER_OF_POSTS_TO_PARSE
     ]
-    likes, views, comments = 0, 0, 0
+    likes, views, comments, recent_posts_count = 0, 0, 0, 0
 
     for i, post in enumerate(posts):
         if i == 0:
@@ -210,6 +210,11 @@ def parse_channel_info(driver: WebDriver, data: dict):
                 ).text
             except NoSuchElementException:
                 data["дата последнего поста"] = None
+                break
+
+        # Проверяем, является ли пост сделан за последние 10 дней
+        post_date = post.find_element(By.CSS_SELECTOR, "small").text
+        recent_posts_count += 1 if utils.is_date_in_the_last_10_days(post_date) else 0
 
         try:
             views_text = post.find_element(
@@ -267,10 +272,15 @@ def parse_channel_info(driver: WebDriver, data: dict):
     data[
         f"наличие комментариев за последние {constants.NUMBER_OF_POSTS_TO_PARSE} постов"
     ] = "да" if comments > 0 else "нет"
+    data["количество постов за последние 10 дней"] = recent_posts_count
 
 
 def parse_and_save_data(
-    driver: WebDriver, content_type: str, min_subscribers: int | None
+    driver: WebDriver,
+    content_type: str,
+    keywords: list[str],
+    min_subscribers: int | None,
+    max_subscribers: int | None,
 ):
     """
     Парсит данные в зависимости от типа контента.
@@ -278,6 +288,9 @@ def parse_and_save_data(
     Args:
         driver (WebDriver): Веб-драйвер
         content_type (str): Тип контента(канал или чат)
+        keywords (list[str]): Ключевые слова для фильтрации каналов и чатов
+        min_subscribers (int | None): Минимальное количество подписчиков
+        max_subscribers (int | None): Максимальное количество подписчиков
     """
 
     if content_type == "чат":
@@ -306,21 +319,31 @@ def parse_and_save_data(
                 if count_of_elments_per_page
                 else content_data
             ):
-                name = item_data.find_element(
+                description = item_data.find_element(
                     By.CSS_SELECTOR, "a.text-body"
-                ).text.split("\n")[0]
-                url = item_data.find_element(
-                    By.CSS_SELECTOR, "a.text-body"
-                ).get_attribute("href")
+                ).text
+                # Фильтруем по ключевым словам
+                if keywords and not any(
+                    keyword.lower() in description.lower() for keyword in keywords
+                ):
+                    continue
+
                 subscribers = int(
                     item_data.find_element(By.TAG_NAME, "b").text.replace(" ", "")
                 )
-
+                # Фильтруем по количеству подписчиков
                 if min_subscribers is not None and subscribers < min_subscribers:
                     break
 
+                if max_subscribers is not None and subscribers > max_subscribers:
+                    continue
+
+                url = item_data.find_element(
+                    By.CSS_SELECTOR, "a.text-body"
+                ).get_attribute("href")
+
                 item_data = {
-                    "название": name,
+                    "название": description.split("\n")[0],
                     "ссылка": constants.TELEGRAM_BASE_URL
                     + url.split("/")[-1].replace("@", ""),
                     "подписчики": subscribers,
