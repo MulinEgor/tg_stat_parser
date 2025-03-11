@@ -349,7 +349,7 @@ def parse_and_save_data(
             )
             driver.execute_script("arguments[0].scrollIntoView(true);", button)
 
-            subscribers = float("inf")
+            subscribers = None
             content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
             for item_data in (
                 content_data[i * count_of_elments_per_page :]
@@ -389,7 +389,11 @@ def parse_and_save_data(
 
                 data.append(item_data)
 
-            if min_subscribers is not None and subscribers < min_subscribers:
+            if (
+                min_subscribers is not None
+                and subscribers is not None
+                and subscribers < min_subscribers
+            ):
                 break
 
             driver.execute_script("arguments[0].click();", button)
@@ -405,28 +409,29 @@ def parse_and_save_data(
             break
 
     print(f"[blue]Найдено {len(data)} {content_type}ов[/blue]")
-    utils.save_data(data)
-    print(
-        f"[green]Данные о {len(data)} {content_type}ах записаны в выходной файл {constants.OUTPUT_PATH}[/green]"
-    )
-
-    if content_type == "канал" and data:
-        print("[yellow]Парсинг данных о каналах...[/yellow]")
-        for i, item_data in enumerate(data):
-            try:
-                parse_channel_info(driver, item_data)
-
-            except Exception as e:
-                print(f"[red]Ошибка при парсинге данных канала:[/red] {e}")
-
-            # Каждые BATCH_SIZE итераций перезаписываем данные в файл
-            if i != 0 and i % constants.BATCH_SAVE_SIZE == 0:
-                utils.save_data(data)
-                print(
-                    f"[green]Подробная информация о {i} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
-                )
-
+    if data:
         utils.save_data(data)
         print(
-            f"[green]Подробная информация о {len(data)} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+            f"[green]Данные о {len(data)} {content_type}ах записаны в выходной файл {constants.OUTPUT_PATH}[/green]"
         )
+
+        if content_type == "канал":
+            print("[yellow]Парсинг данных о каналах...[/yellow]")
+            for i, item_data in enumerate(data):
+                try:
+                    parse_channel_info(driver, item_data)
+
+                except Exception as e:
+                    print(f"[red]Ошибка при парсинге данных канала:[/red] {e}")
+
+                # Каждые BATCH_SIZE итераций перезаписываем данные в файл
+                if i != 0 and i % constants.BATCH_SAVE_SIZE == 0:
+                    utils.save_data(data)
+                    print(
+                        f"[green]Подробная информация о {i} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+                    )
+
+            utils.save_data(data)
+            print(
+                f"[green]Подробная информация о {len(data)} {content_type}ах добавлена в выходной файл {constants.OUTPUT_PATH}[/green]"
+            )

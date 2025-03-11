@@ -2,7 +2,7 @@
 
 WEBSITE_BASE_URL = "https://tgstat.ru"
 TELEGRAM_BASE_URL = "https://t.me/"
-DEFAULT_PARSE_TIMEOUT = 3
+DEFAULT_PARSE_TIMEOUT = 10
 BATCH_SAVE_SIZE = 100  # Количество данных, которые будут сохраняться за раз
 CONTENT_TYPES = ["чат", "канал"]
 NUMBER_OF_POSTS_TO_PARSE = 10
