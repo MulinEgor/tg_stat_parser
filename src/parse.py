@@ -349,6 +349,7 @@ def parse_and_save_data(
             )
             driver.execute_script("arguments[0].scrollIntoView(true);", button)
 
+            subscribers = float("inf")
             content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
             for item_data in (
                 content_data[i * count_of_elments_per_page :]
@@ -409,7 +410,7 @@ def parse_and_save_data(
         f"[green]Данные о {len(data)} {content_type}ах записаны в выходной файл {constants.OUTPUT_PATH}[/green]"
     )
 
-    if content_type == "канал":
+    if content_type == "канал" and data:
         print("[yellow]Парсинг данных о каналах...[/yellow]")
         for i, item_data in enumerate(data):
             try:
