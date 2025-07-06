@@ -404,6 +404,7 @@ def parse_and_save_data(
             driver.execute_script("arguments[0].scrollIntoView(true);", button)
 
             content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
+            subscribers = None
             for item_data in (
                 content_data[i * count_of_elments_per_page :]
                 if count_of_elments_per_page
@@ -442,7 +443,11 @@ def parse_and_save_data(
 
                 data.append(item_data)
 
-            if min_subscribers is not None and subscribers < min_subscribers:
+            if (
+                min_subscribers is not None
+                and subscribers is not None
+                and subscribers < min_subscribers
+            ):
                 break
 
             driver.execute_script("arguments[0].click();", button)
