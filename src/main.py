@@ -118,6 +118,9 @@ def main():
             driver, content_type, keywords, min_subscribers, max_subscribers
         )
 
+    except KeyboardInterrupt:
+        print("[red]Программа завершена пользователем[/red]")
+
     except Exception as e:
         print(f"[red]Произошла ошибка: {e}[/red]")
 

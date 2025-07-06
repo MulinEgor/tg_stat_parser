@@ -45,10 +45,10 @@ def get_driver() -> WebDriver:
         driver = _get_driver()
 
     except SessionNotCreatedException as e:
-        print(f"[yellow]Ошибка создания сессии Chrome: {e}[/yellow]")
+        print(f"[yellow]Ошибка создания сессии Chrome: {e.msg}[/yellow]")
 
         try:
-            version_match = re.search(r"version (\d+)", str(e))
+            version_match = re.search(r"version is (\d+)", str(e))
             if version_match:
                 browser_version = int(version_match.group(1))
                 print(f"[green]Обнаружена версия браузера: {browser_version}[/green]")
