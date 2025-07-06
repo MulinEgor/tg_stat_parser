@@ -1,5 +1,6 @@
 """Модуль для парсинга данных с сайта с помощью Selenium"""
 
+import ssl
 import time
 
 import undetected_chromedriver as uc
@@ -16,6 +17,8 @@ import utils
 
 # MARK: Driver
 def get_driver(broswer_version: int | None = None) -> WebDriver:
+    ssl._create_default_https_context = ssl._create_unverified_context
+
     options = uc.ChromeOptions()
     options.add_argument("--ignore-certificate-errors")
     options.add_argument("--ignore-ssl-errors")
