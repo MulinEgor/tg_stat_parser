@@ -1,7 +1,6 @@
 """Модуль для запуска программы"""
 
 import questionary
-import undetected_chromedriver as uc
 from rich import print
 from selenium.common.exceptions import SessionNotCreatedException
 
@@ -13,11 +12,12 @@ import utils
 def main():
     # MARK: Инициализация
     try:
-        driver = uc.Chrome()
+        driver = parse.get_driver()
 
     except SessionNotCreatedException as e:
         broswer_version = int(e.msg.split(" ")[-1].split(".")[0])
-        driver = uc.Chrome(version_main=broswer_version)
+
+        driver = parse.get_driver(broswer_version)
 
     try:
         driver.maximize_window()

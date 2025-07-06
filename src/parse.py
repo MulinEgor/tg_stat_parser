@@ -2,6 +2,7 @@
 
 import time
 
+import undetected_chromedriver as uc
 from rich import print
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -11,6 +12,24 @@ from selenium.webdriver.support.ui import WebDriverWait
 
 import constants
 import utils
+
+
+# MARK: Driver
+def get_driver(broswer_version: int | None = None) -> WebDriver:
+    options = uc.ChromeOptions()
+    options.add_argument("--ignore-certificate-errors")
+    options.add_argument("--ignore-ssl-errors")
+    options.add_argument("--ignore-certificate-errors-spki-list")
+    options.add_argument("--ignore-certificate-errors-sp-cert-transparency")
+    options.add_argument("--disable-web-security")
+    options.add_argument("--allow-running-insecure-content")
+
+    if broswer_version:
+        driver = uc.Chrome(version_main=broswer_version, options=options)
+    else:
+        driver = uc.Chrome(options=options)
+
+    return driver
 
 
 # MARK: CAPTCHA
