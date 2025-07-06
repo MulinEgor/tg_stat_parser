@@ -1,11 +1,16 @@
 """Модуль для парсинга данных с сайта с помощью Selenium"""
 
+import re
 import ssl
 import time
 
 import undetected_chromedriver as uc
 from rich import print
-from selenium.common.exceptions import NoSuchElementException, TimeoutException
+from selenium.common.exceptions import (
+    NoSuchElementException,
+    SessionNotCreatedException,
+    TimeoutException,
+)
 from selenium.webdriver.common.by import By
 from selenium.webdriver.remote.webdriver import WebDriver
 from selenium.webdriver.support import expected_conditions as EC
@@ -16,7 +21,7 @@ import utils
 
 
 # MARK: Driver
-def get_driver(broswer_version: int | None = None) -> WebDriver:
+def _get_driver(broswer_version: int | None = None) -> WebDriver:
     ssl._create_default_https_context = ssl._create_unverified_context
 
     options = uc.ChromeOptions()
@@ -31,6 +36,33 @@ def get_driver(broswer_version: int | None = None) -> WebDriver:
         driver = uc.Chrome(version_main=broswer_version, options=options)
     else:
         driver = uc.Chrome(options=options)
+
+    return driver
+
+
+def get_driver() -> WebDriver:
+    try:
+        driver = _get_driver()
+
+    except SessionNotCreatedException as e:
+        print(f"[yellow]Ошибка создания сессии Chrome: {e}[/yellow]")
+
+        try:
+            version_match = re.search(r"version (\d+)", str(e))
+            if version_match:
+                browser_version = int(version_match.group(1))
+                print(f"[green]Обнаружена версия браузера: {browser_version}[/green]")
+                driver = _get_driver(browser_version)
+            else:
+                print(
+                    "[yellow]Не удалось определить версию браузера, попробуем...[/yellow]"
+                )
+                raise e
+        except Exception as version_error:
+            print(
+                f"[red]Не удалось создать драйвер с определенной версией: {version_error}[/red] [yellow]Попробуйте обновить Chrome или chromedriver[/yellow]"
+            )
+            raise e
 
     return driver
 
