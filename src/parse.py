@@ -45,22 +45,16 @@ def get_driver() -> WebDriver:
         driver = _get_driver()
 
     except SessionNotCreatedException as e:
-        print(f"[yellow]Ошибка создания сессии Chrome: {e.msg}[/yellow]")
-
         try:
             version_match = re.search(r"version is (\d+)", str(e))
             if version_match:
                 browser_version = int(version_match.group(1))
-                print(f"[green]Обнаружена версия браузера: {browser_version}[/green]")
                 driver = _get_driver(browser_version)
             else:
-                print(
-                    "[yellow]Не удалось определить версию браузера, попробуем...[/yellow]"
-                )
                 raise e
         except Exception as version_error:
             print(
-                f"[red]Не удалось создать драйвер с определенной версией: {version_error}[/red] [yellow]Попробуйте обновить Chrome или chromedriver[/yellow]"
+                f"[red]Не удалось создать драйвер с определенной версией: {version_error}[/red]"
             )
             raise e
 
@@ -371,6 +365,7 @@ def parse_and_save_data(
     keywords: list[str],
     min_subscribers: int | None,
     max_subscribers: int | None,
+    should_parse_channel_info: bool,
 ):
     """
     Парсит данные в зависимости от типа контента.
@@ -381,6 +376,7 @@ def parse_and_save_data(
         keywords (list[str]): Ключевые слова для фильтрации каналов и чатов
         min_subscribers (int | None): Минимальное количество подписчиков
         max_subscribers (int | None): Максимальное количество подписчиков
+        should_parse_channel_info (bool): Парсить ли подробную информацию о канале
     """
 
     if content_type == "чат":
@@ -468,8 +464,8 @@ def parse_and_save_data(
         f"[green]Данные о {len(data)} {content_type}ах записаны в выходной файл {constants.OUTPUT_PATH}[/green]"
     )
 
-    if content_type == "канал":
-        print("[yellow]Парсинг данных о каналах...[/yellow]")
+    if content_type == "канал" and should_parse_channel_info:
+        print("[yellow]Парсинг подробной информации о каналах...[/yellow]")
         for i, item_data in enumerate(data):
             try:
                 parse_channel_info(driver, item_data)

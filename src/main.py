@@ -15,7 +15,6 @@ def main():
         driver.maximize_window()
         driver.get(constants.WEBSITE_BASE_URL)
 
-        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
         if parse.exists_captcha(driver):
             utils.prompt_to_solve_captcha(driver)
 
@@ -25,7 +24,6 @@ def main():
         )
         input("Нажмите Enter, когда авторизуетесь...")
 
-        # Проверяем авторизацию
         if not parse.check_auth(driver):
             print(
                 "[red]Вы не авторизовались на сайте, полное количество каналов не будет получено[/red]"
@@ -35,7 +33,6 @@ def main():
             print("[green]Авторизация прошла успешно[/green]")
 
         # MARK: Страны
-        # Получаем список стран
         print("[yellow]Получение списка стран...[/yellow]")
         countries = parse.parse_countries(driver)
 
@@ -45,18 +42,14 @@ def main():
 
         print(f"[blue]Найдено {len(countries)} стран:[/blue]")
 
-        # Выбираем страну
         country = questionary.select("Выберите страну:", choices=countries).ask()
 
-        # Переходим на страницу с выбранной страной
         parse.press_country_button(driver, country)
 
-        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
         if parse.exists_captcha(driver):
             utils.prompt_to_solve_captcha(driver)
 
         # MARK: Категории
-        # Получаем список категорий
         print("[yellow]Получение списка категорий...[/yellow]")
         categories = parse.parse_categories(driver)
 
@@ -66,7 +59,6 @@ def main():
 
         print(f"[blue]Найдено {len(categories)} категорий:[/blue]")
 
-        # Выбираем категорию
         category_names = [cat["название"] for cat in categories]
         category_name = questionary.select(
             "Выберите категорию:", choices=category_names
@@ -74,48 +66,50 @@ def main():
 
         category = next(cat for cat in categories if cat["название"] == category_name)
 
-        # Переходим на страницу с категорией
         driver.get(category["ссылка"])
 
-        # Проверяем наличие капчи, если она есть, то просим пользователя решить её
         if parse.exists_captcha(driver):
             utils.prompt_to_solve_captcha(driver)
 
         # MARK: Тип контента
         print(f"[blue]Найдено {len(constants.CONTENT_TYPES)} типов контента:[/blue]")
 
-        # Выбираем тип контента
         content_type = questionary.select(
             "Выберите тип контента:", choices=constants.CONTENT_TYPES
         ).ask()
 
-        # Получаем минимальное и максимальное количество подписчиков
+        parse_channel_info = False
+        if content_type == "канал":
+            parse_channel_info = questionary.confirm(
+                "Хотите получить подробную информацию о канале?"
+            ).ask()
+
         min_subscribers = questionary.text(
             "Введите минимальное количество подписчиков (оставьте пустым, если ограничение не требуется):"
         ).ask()
 
-        # Преобразуем введенное значение в число или None
         min_subscribers = int(min_subscribers) if min_subscribers.strip() else None
 
         max_subscribers = questionary.text(
             "Введите максимальное количество подписчиков (оставьте пустым, если ограничение не требуется):"
         ).ask()
 
-        # Преобразуем введенное значение в число или None
         max_subscribers = int(max_subscribers) if max_subscribers.strip() else None
 
-        # Получаем ключевые слова по которым будет происходить поиск
         keywords = questionary.text(
             "Введите ключевые слова через пробел по которым будет происходить поиск (оставьте пустым, если не требуется):"
         ).ask()
 
-        # Преобразуем введенное значение в список
         keywords = keywords.split()
 
-        # MARK: Каналы и чаты
         print(f"[yellow]Получение списка {content_type}ов...[/yellow]")
         parse.parse_and_save_data(
-            driver, content_type, keywords, min_subscribers, max_subscribers
+            driver,
+            content_type,
+            keywords,
+            min_subscribers,
+            max_subscribers,
+            parse_channel_info,
         )
 
     except KeyboardInterrupt:
