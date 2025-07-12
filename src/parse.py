@@ -383,6 +383,7 @@ def parse_and_save_data(
         button = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
             EC.element_to_be_clickable((By.ID, "peer_type_chat"))
         )
+        driver.execute_script("arguments[0].scrollIntoView(true);", button)
         driver.execute_script("arguments[0].click();", button)
 
     data = []
