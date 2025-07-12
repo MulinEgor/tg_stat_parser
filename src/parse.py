@@ -9,6 +9,7 @@ from rich import print
 from selenium.common.exceptions import (
     NoSuchElementException,
     SessionNotCreatedException,
+    StaleElementReferenceException,
     TimeoutException,
 )
 from selenium.webdriver.common.by import By
@@ -387,26 +388,31 @@ def parse_and_save_data(
         driver.execute_script("arguments[0].click();", button)
 
     data = []
-    count_of_elments_per_page, i = None, 0
+    processed_urls = set()
     while True:
         try:
-            button = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
-                EC.element_to_be_clickable(
+            WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
+                EC.presence_of_element_located(
                     (
                         By.CSS_SELECTOR,
                         "#category-list-form button.btn.btn-light.border.lm-button.py-1.min-width-220px",
                     )
                 )
             )
-            driver.execute_script("arguments[0].scrollIntoView(true);", button)
 
             content_data = driver.find_elements(By.CSS_SELECTOR, ".peer-item-box")
             subscribers = None
-            for item_data in (
-                content_data[i * count_of_elments_per_page :]
-                if count_of_elments_per_page
-                else content_data
-            ):
+            new_items_found = False
+            for item_data in content_data:
+                url = item_data.find_element(
+                    By.CSS_SELECTOR, "a.text-body"
+                ).get_attribute("href")
+                if url in processed_urls:
+                    continue
+
+                new_items_found = True
+                processed_urls.add(url)
+
                 description = item_data.find_element(
                     By.CSS_SELECTOR, "a.text-body"
                 ).text
@@ -426,19 +432,14 @@ def parse_and_save_data(
                 if max_subscribers is not None and subscribers > max_subscribers:
                     continue
 
-                url = item_data.find_element(
-                    By.CSS_SELECTOR, "a.text-body"
-                ).get_attribute("href")
-
-                item_data = {
+                item_info = {
                     "название": description.split("\n")[0],
                     "ссылка": constants.TELEGRAM_BASE_URL
                     + url.split("/")[-1].replace("@", ""),
                     "подписчики": subscribers,
                     "ссылка для парсинга": url,
                 }
-
-                data.append(item_data)
+                data.append(item_info)
 
             if (
                 min_subscribers is not None
@@ -447,15 +448,28 @@ def parse_and_save_data(
             ):
                 break
 
+            if not new_items_found:
+                break
+
+            button = WebDriverWait(driver, constants.DEFAULT_PARSE_TIMEOUT).until(
+                EC.element_to_be_clickable(
+                    (
+                        By.CSS_SELECTOR,
+                        "#category-list-form button.btn.btn-light.border.lm-button.py-1.min-width-220px",
+                    )
+                )
+            )
+            driver.execute_script("arguments[0].scrollIntoView(true);", button)
             driver.execute_script("arguments[0].click();", button)
-            i += 1
-            if count_of_elments_per_page is None:
-                count_of_elments_per_page = len(content_data)
+            time.sleep(2)
 
         except TimeoutException:
             break
 
         except Exception as e:
+            if isinstance(e, StaleElementReferenceException):
+                time.sleep(2)
+                continue
             print(f"[red]Ошибка при парсинге данных:[/red] {e}")
             break
 
